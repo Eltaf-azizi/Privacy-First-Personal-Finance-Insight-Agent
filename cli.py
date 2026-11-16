@@ -28,3 +28,29 @@ def cmd_ingest(args):
     save_transactions(df)
     print(f"✅ Ingested {len(df)} transactions")
     print(df.head())
+
+
+def cmd_ask(args):
+    df = load_from_db()
+    if df.empty:
+        sys.exit("No data — run `python cli.py ingest <path>` first.")
+    print(answer_question(args.question, df))
+
+
+def cmd_report(args):
+    df = load_from_db()
+    if df.empty:
+        sys.exit("No data.")
+    print("=== Monthly summary ===")
+    print(monthly_summary(df).to_string(index=False))
+    print("\n=== Spend by category ===")
+    print(spend_by_category(df).to_string(index=False))
+
+
+def cmd_check(args):
+    """Run the check_* scripts for DoD verification."""
+    import subprocess
+    for script in ["check_rules.py", "check_qa.py"]:
+        print(f"\n━━━ {script} ━━━")
+        subprocess.run([sys.executable, script], check=False)
+
