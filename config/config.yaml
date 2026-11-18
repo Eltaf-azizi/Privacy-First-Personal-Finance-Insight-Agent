@@ -1,0 +1,17 @@
+# Central configuration — edit here, not in code
+app:
+  name: "Privacy-First Personal Finance Agent"
+  currency: "£"
+  month_freq: "ME"
+
+ingest:
+  date_formats:
+    - "%Y-%m-%d"
+    - "%d/%m/%Y"
+    - "%m/%d/%Y"
+    - "%d-%m-%Y"
+    - "%Y/%m/%d"
+  amount_columns:
+    debit: ["Debit", "DR", "Withdrawal"]
+    credit: ["Credit", "CR", "Deposit"]
+    single: ["Amount", "Value", "Sum"]
