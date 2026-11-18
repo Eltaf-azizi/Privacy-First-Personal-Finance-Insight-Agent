@@ -15,3 +15,30 @@ ingest:
     debit: ["Debit", "DR", "Withdrawal"]
     credit: ["Credit", "CR", "Deposit"]
     single: ["Amount", "Value", "Sum"]
+
+
+categorise:
+  rule_threshold: 0.85        # minimum fuzzy-match score for a rule to apply
+  use_llm: false
+  llm_model: "llama3.2"
+  llm_endpoint: "http://localhost:11434/api/generate"
+  use_ml_fallback: true
+
+anomaly:
+  z_threshold: 2.5
+  iqr_multiplier: 1.5
+  mad_threshold: 3.5
+  methods: ["zscore", "iqr", "mad"]
+
+forecast:
+  method: "linear"            # "mean" | "linear" | "holtwinters"
+  window_months: 6
+
+logging:
+  level: "INFO"
+  file: "data/app.log"
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+
+privacy:
+  audit_file: "data/privacy_audit.log"
+  monitor_enabled: true
