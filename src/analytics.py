@@ -44,3 +44,28 @@ def monthly_by_category(df: pd.DataFrame) -> pd.DataFrame:
         .unstack(fill_value=0)
     )
 
+
+
+def category_trends(df: pd.DataFrame) -> pd.DataFrame:
+    """Per-category change between the last two months."""
+    mc = monthly_by_category(df)
+    if len(mc) < 2:
+        return pd.DataFrame()
+    last, prev = mc.iloc[-1], mc.iloc[-2]
+    change = ((last - prev) / prev.replace(0, pd.NA) * 100).round(1)
+    return pd.DataFrame({"last_month": last, "prev_month": prev,
+                         "change_pct": change}).sort_values("change_pct")
+
+
+
+def day_of_week_pattern(df: pd.DataFrame) -> pd.DataFrame:
+    d = df[df["amount"] < 0].copy()
+    d["dow"] = d["date"].dt.day_name()
+    order = ["Monday", "Tuesday", "Wednesday", "Thursday",
+             "Friday", "Saturday", "Sunday"]
+    out = (
+        d.groupby("dow")["amount"].agg(["sum", "count"]).abs()
+        .reindex(order, fill_value=0).reset_index()
+    )
+    out.columns = ["day", "amount", "count"]
+    return out
