@@ -22,3 +22,25 @@ def monthly_summary(df: pd.DataFrame) -> pd.DataFrame:
     out["mom_change_pct"] = out["spent"].pct_change().mul(100).round(1)
     return out
 
+
+
+def spend_by_category(df: pd.DataFrame) -> pd.DataFrame:
+    spend = df[df["amount"] < 0].copy()
+    out = (
+        spend.groupby("category")["amount"].sum().abs()
+        .reset_index(name="amount").sort_values("amount", ascending=False)
+    )
+    total = out["amount"].sum() or 1
+    out["pct"] = (out["amount"] / total * 100).round(1)
+    return out
+
+
+
+def monthly_by_category(df: pd.DataFrame) -> pd.DataFrame:
+    d = df[df["amount"] < 0].copy()
+    d["month"] = d["date"].dt.to_period("M").astype(str)
+    return (
+        d.groupby(["month", "category"])["amount"].sum().abs()
+        .unstack(fill_value=0)
+    )
+
