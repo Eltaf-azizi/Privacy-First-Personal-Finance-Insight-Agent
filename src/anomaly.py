@@ -35,3 +35,33 @@ def _iqr(df: pd.DataFrame, k: float) -> pd.DataFrame:
     upper = q3 + k * iqr
     df["flag_iqr"] = (df["amount"] < lower) | (df["amount"] > upper)
     return df
+
+
+def _mad(df: pd.DataFrame, t: float) -> pd.DataFrame:
+    """Modified z-score using median absolute deviation — robust to outliers."""
+    df = df.copy()
+    med = df.groupby("category")["amount"].transform("median")
+    mad = (df["amount"] - med).abs().groupby(df["category"]).transform("median")
+    mad = mad.replace(0, np.nan)
+    df["mod_z"] = 0.6745 * (df["amount"] - med) / mad
+    df["flag_mad"] = df["mod_z"].abs() > t
+    return df
+
+
+def _isoforest(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    try:
+        from sklearn.ensemble import IsolationForest
+    except ImportError:
+        df["flag_iso"] = False
+        return df
+
+    df["flag_iso"] = False
+    for cat, group in df.groupby("category"):
+        if len(group) < 10:
+            continue
+        model = IsolationForest(contamination=0.05, random_state=42)
+        preds = model.fit_predict(group[["amount"]])
+        df.loc[group.index, "flag_iso"] = preds == -1
+    return df
+
