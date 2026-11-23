@@ -65,3 +65,40 @@ def _isoforest(df: pd.DataFrame) -> pd.DataFrame:
         df.loc[group.index, "flag_iso"] = preds == -1
     return df
 
+
+def flag_anomalies(
+    df: pd.DataFrame,
+    methods: list[str] = None,
+    z: float = None,
+    iqr_k: float = None,
+    mad_t: float = None,
+) -> pd.DataFrame:
+    if methods is None:
+        methods = get("anomaly", "methods", ["zscore", "iqr", "mad"])
+    if z is None:
+        z = get("anomaly", "z_threshold", 2.5)
+    if iqr_k is None:aly", "iqr_multiplier", 1.5)
+    if mad_t is None:
+        iqr_k = get("anom
+        mad_t = get("anomaly", "mad_threshold", 3.5)
+
+    if "zscore" in methods:
+        df = _zscore(df, z)
+    if "iqr" in methods:
+        df = _iqr(df, iqr_k)
+    if "mad" in methods:
+        df = _mad(df, mad_t)
+    if "isoforest" in methods:
+        df = _isoforest(df)
+
+    flags = [c for c in df.columns if c.startswith("flag_")]
+    df["anomaly_votes"] = df[flags].sum(axis=1)
+    df["is_anomaly"] = df["anomaly_votes"] >= max(2, len(flags) // 2 + 1)
+    df["severity"] = df["anomaly_votes"].map(
+        lambda v: "critical" if v >= 3 else ("warning" if v == 2 else "info")
+    )
+
+    _log.info("Anomaly detection: %d flagged (methods=%s)",
+              int(df["is_anomaly"].sum()), methods)
+    return df
+    
