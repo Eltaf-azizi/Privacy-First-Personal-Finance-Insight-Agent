@@ -79,3 +79,40 @@ def load_transactions(
         mapping = auto_detect_mapping(raw) if auto_map else {}
 
     
+    # Debit/credit split handling
+    debit_cfg = get("ingest", "amount_columns", {}).get("debit", [])
+    credit_cfg = get("ingest", "amount_columns", {}).get("credit", [])
+    debit_col = next((c for c in raw.columns if c in debit_cfg), None)
+    credit_col = next((c for c in raw.columns if c in credit_cfg), None)
+
+    if debit_col and credit_col:
+        raw["__amount__"] = (
+            pd.to_numeric(raw[credit_col], errors="coerce").fillna(0)
+            - pd.to_numeric(raw[debit_col], errors="coerce").fillna(0)
+        )
+        mapping = {**mapping, "__amount__": "amount"}
+
+    rename = {k: v for k, v in mapping.items() if k in raw.columns}
+    df = raw.rename(columns=rename)
+    df = df[[c for c in ("date", "description", "amount") if c in df.columns]]
+
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    if "amount" in df.columns:
+        df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+    if "description" in df.columns:
+        df["description"] = df["description"].astype(str)
+        df["merchant"] = df["description"].map(normalise)
+    else:
+        df["description"] = ""
+        df["merchant"] = ""
+
+    df = df.dropna(subset=["date", "amount"]).reset_index(drop=True)
+
+    report = validate_transactions(df)
+    if not report.ok:
+        raise ValueError(report.summary())
+
+    _log.info("Ingested %d transactions (%s → %s)",
+              len(df), df["date"].min().date(), df["date"].max().date())
+    return df
