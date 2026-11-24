@@ -29,3 +29,20 @@ def _detect_date_column(df: pd.DataFrame) -> Optional[str]:
         if pd.to_datetime(df[col], errors="coerce").notna().mean() > 0.8:
             return col
     return None
+
+
+
+def _detect_amount_column(df: pd.DataFrame) -> Optional[str]:
+    for col in df.columns:
+        if pd.to_numeric(df[col], errors="coerce").notna().mean() > 0.8:
+            return col
+    return None
+
+
+
+def _detect_description_column(df: pd.DataFrame) -> Optional[str]:
+    for col in df.columns:
+        if df[col].dtype == object and df[col].str.len().mean() > 4:
+            return col
+    return None
+
