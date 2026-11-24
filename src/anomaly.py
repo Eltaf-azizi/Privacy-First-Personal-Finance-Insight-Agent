@@ -77,9 +77,10 @@ def flag_anomalies(
         methods = get("anomaly", "methods", ["zscore", "iqr", "mad"])
     if z is None:
         z = get("anomaly", "z_threshold", 2.5)
-    if iqr_k is None:aly", "iqr_multiplier", 1.5)
+    if iqr_k is None:
+        iqr_k = get("anomaly", "iqr_multiplier", 1.5)
     if mad_t is None:
-        iqr_k = get("anom
+        iqr_k = get("anomaly", "iqr_multiplier", 1.5)
         mad_t = get("anomaly", "mad_threshold", 3.5)
 
     if "zscore" in methods:
