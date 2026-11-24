@@ -46,3 +46,36 @@ def _detect_description_column(df: pd.DataFrame) -> Optional[str]:
             return col
     return None
 
+
+
+def auto_detect_mapping(df: pd.DataFrame) -> dict:
+    """Best-effort mapping for unfamiliar bank exports."""
+    mapping: dict = {}
+    d = _detect_date_column(df)
+    a = _detect_amount_column(df)
+    s = _detect_description_column(df)
+    if d: mapping[d] = "date"
+    if a: mapping[a] = "amount"
+    if s: mapping[s] = "description"
+    _log.info("Auto-detected mapping: %s", mapping)
+    return mapping
+
+
+# ---- Loader -----------------------------------------------------------------
+
+def load_transactions(
+    source: Union[str, Path, io.BytesIO],
+    mapping: Optional[dict] = None,
+    auto_map: bool = True,
+) -> pd.DataFrame:
+    """
+    Load a bank CSV and return a canonical DataFrame
+    with columns ['date', 'description', 'amount', 'merchant'].
+    """
+    raw = pd.read_csv(source)
+    _log.info("Loaded raw CSV: shape=%s", raw.shape)
+
+    if mapping is None:
+        mapping = auto_detect_mapping(raw) if auto_map else {}
+
+    
