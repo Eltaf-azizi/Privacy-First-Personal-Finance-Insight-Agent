@@ -51,3 +51,48 @@ def apply_rules(df: pd.DataFrame) -> pd.DataFrame:
             df.loc[mask, "confidence"] = 1.0
     return df
 
+
+
+# ---- Tier 2: learned corrections ------------------------------------------
+
+CORRECTIONS_DB = Path("data/corrections.db")
+
+
+def load_corrections() -> dict[str, str]:
+    if not CORRECTIONS_DB.exists():
+        return {}
+    import sqlite3
+    conn = sqlite3.connect(CORRECTIONS_DB)
+    try:
+        rows = conn.execute("SELECT merchant, category FROM corrections").fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    conn.close()
+    return {m: c for m, c in rows}
+
+
+def save_correction(merchant: str, category: str) -> None:
+    import sqlite3
+    CORRECTIONS_DB.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(CORRECTIONS_DB)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS corrections (merchant TEXT PRIMARY KEY, category TEXT)"
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO corrections (merchant, category) VALUES (?, ?)",
+        (merchant, category),
+    )
+    conn.commit()
+    conn.close()
+    _log.info("Saved correction: %s → %s", merchant, category)
+
+
+def apply_corrections(df: pd.DataFrame) -> pd.DataFrame:
+    corrections = load_corrections()
+    if not corrections:
+        return df
+    mask = df["category"].isna() & df["merchant"].isin(corrections)
+    df.loc[mask, "category"] = df.loc[mask, "merchant"].map(corrections)
+    df.loc[mask, "confidence"] = 0.95
+    return df
+
