@@ -96,3 +96,30 @@ def apply_corrections(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[mask, "confidence"] = 0.95
     return df
 
+
+
+# ---- Tier 3: local LLM -----------------------------------------------------
+
+def _ask_ollama(description: str) -> tuple[str, float]:
+    import requests
+    url = get("categorise", "llm_endpoint", "http://localhost:11434/api/generate")
+    assert_local(url)  # raises if non-local
+    model = get("categorise", "llm_model", "llama3.2")
+    prompt = (
+        f"Categorise into one of: {', '.join(CATEGORIES)}.\n"
+        f"Transaction: '{description}'\nReply with category only."
+    )
+    try:
+        r = requests.post(
+            url,
+            json={"model": model, "prompt": prompt, "stream": False},
+            timeout=30,
+        )
+        out = r.json().get("response", "").strip().split()[0].strip(".,'\"")
+        if out in CATEGORIES:
+            audit("LLM_CATEGORISE", f"{description[:40]} -> {out}")
+            return out, 0.75
+    except Exception as e:
+        _log.warning("LLM call failed: %s", e)
+    return "Other", 0.1
+
