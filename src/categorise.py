@@ -34,3 +34,20 @@ RULES: dict[str, list[str]] = {
 }
 
 CATEGORIES = sorted(list(RULES.keys()) + ["Income", "Other"])
+
+
+
+# ---- Tier 1: rules ---------------------------------------------------------
+
+def apply_rules(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["category"] = pd.NA
+    df["confidence"] = 0.0
+    text = df["merchant"].fillna("").astype(str)
+    for cat, keywords in RULES.items():
+        for kw in keywords:
+            mask = text.str.contains(kw, na=False) & df["category"].isna()
+            df.loc[mask, "category"] = cat
+            df.loc[mask, "confidence"] = 1.0
+    return df
+
