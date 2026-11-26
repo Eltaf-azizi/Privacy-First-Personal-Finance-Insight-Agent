@@ -123,3 +123,34 @@ def _ask_ollama(description: str) -> tuple[str, float]:
         _log.warning("LLM call failed: %s", e)
     return "Other", 0.1
 
+
+
+# ---- Tier 4: ML fallback ---------------------------------------------------
+
+_ML_MODEL = None
+
+
+def _train_ml(df: pd.DataFrame) -> None:
+    """Train a tiny Naive Bayes on rows already labelled by rules."""
+    global _ML_MODEL
+    try:
+        from sklearn.feature_extraction.text import CountVectorizer
+        from sklearn.naive_bayes import MultinomialNB
+        from sklearn.pipeline import Pipeline
+    except ImportError:
+        _log.info("scikit-learn not installed — ML fallback disabled")
+        _ML_MODEL = None
+        return
+
+    labelled = df[df["category"].notna() & (df["confidence"] >= 0.9)]
+    if len(labelled) < 30 or labelled["category"].nunique() < 2:
+        _ML_MODEL = None
+        return
+
+    model = Pipeline([
+        ("vec", CountVectorizer(ngram_range=(1, 2))),
+        ("nb", MultinomialNB()),
+    ])
+    model.fit(labelled["merchant"], labelled["category"])
+    _ML_MODEL = model
+    _log.info("ML fallback trained on %d labelled rows", len(labelled))
