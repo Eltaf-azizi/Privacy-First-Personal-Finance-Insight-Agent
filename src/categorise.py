@@ -175,3 +175,36 @@ def _apply_ml(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+
+# ---- Orchestrator ----------------------------------------------------------
+
+def categorise(
+    df: pd.DataFrame,
+    use_llm: bool = None,
+    use_ml: bool = None,
+) -> pd.DataFrame:
+    if use_llm is None:
+        use_llm = get("categorise", "use_llm", False)
+    if use_ml is None:
+        use_ml = get("categorise", "use_ml_fallback", True)
+
+    df = apply_rules(df)
+    df = apply_corrections(df)
+
+    unclear = df["category"].isna()
+    if unclear.any() and use_llm:
+        results = df.loc[unclear, "merchant"].apply(_ask_ollama)
+        df.loc[unclear, "category"] = [c for c, _ in results]
+        df.loc[unclear, "confidence"] = [p for _, p in results]
+
+    if use_ml:
+        _train_ml(df)          # train on rule-labelled portion
+        df = _apply_ml(df)
+
+    df["category"] = df["category"].fillna("Other")
+    df["confidence"] = df["confidence"].fillna(0.0).clip(0, 1).round(2)
+
+    _log.info("Categorised %d rows (confidence mean %.2f)",
+              len(df), df["confidence"].mean())
+    return df
+    
