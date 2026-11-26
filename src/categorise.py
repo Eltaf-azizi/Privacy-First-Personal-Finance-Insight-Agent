@@ -154,3 +154,24 @@ def _train_ml(df: pd.DataFrame) -> None:
     model.fit(labelled["merchant"], labelled["category"])
     _ML_MODEL = model
     _log.info("ML fallback trained on %d labelled rows", len(labelled))
+
+
+def _apply_ml(df: pd.DataFrame) -> pd.DataFrame:
+    if _ML_MODEL is None:
+        return df
+    mask = df["category"].isna()
+    if not mask.any():
+        return df
+    try:
+        preds = _ML_MODEL.predict(df.loc[mask, "merchant"])
+        proba = _ML_MODEL.predict_proba(df.loc[mask, "merchant"]).max(axis=1)
+        # Only trust high-confidence predictions
+        confident = proba >= 0.5
+        idx = df.loc[mask].index
+        df.loc[idx[confident], "category"] = preds[confident]
+        df.loc[idx[confident], "confidence"] = proba[confident] * 0.6
+    except Exception as e:
+        _log.warning("ML fallback error: %s", e)
+    return df
+
+
